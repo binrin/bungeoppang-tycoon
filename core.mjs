@@ -125,6 +125,16 @@ export function validate(input) {
     if (!Array.isArray(s.molds) || s.molds.length !== 9 || s.molds.some(m => !m || !['empty','front','back','burnt'].includes(m.phase) || !finite(m.age, 0, 12))) return fresh();
     if (!Array.isArray(s.customers) || s.customers.length !== 3 || s.customers.some(c => !c || !finite(c.kind, 0, 3, true) || !finite(c.need, 1, 4, true) || !finite(c.wait, 0, 75) || !finite(c.maxWait, 30, 75) || !finite(c.delay, 0, 3) || c.wait > c.maxWait)) return fresh();
     if (s.customers.some(c => c.look !== undefined && !finite(c.look, 0, 9, true))) return fresh();
-    return {version: 1, stall, day: s.day, coins: s.coins, best: s.best, totalSold: s.totalSold, stock: s.stock, combo: s.combo, dayCoins: s.dayCoins, daySold: s.daySold, time: s.time, running: false, heat: s.heat, up: Object.fromEntries(KEYS.map(k => [k,s.up[k]])), molds: s.molds.map(m => ({phase: m.phase, age: m.age})), customers: s.customers.map(c => ({look:c.look === undefined ? LEGACY_LOOKS[c.kind] : c.look, kind:c.kind, need:c.need, wait:c.wait, maxWait:c.maxWait, delay:c.delay})), notice: typeof s.notice === 'string' ? s.notice.slice(0, 200) : '저장된 장사를 불러왔어요.'};
+    const usedLooks = new Set();
+    const customers = s.customers.map(c => {
+      let look = c.look === undefined ? LEGACY_LOOKS[c.kind] : c.look;
+      if (usedLooks.has(look)) {
+        const matching = LOOK_KINDS.findIndex((kind, i) => kind === c.kind && !usedLooks.has(i));
+        look = matching >= 0 ? matching : LOOK_KINDS.findIndex((_, i) => !usedLooks.has(i));
+      }
+      usedLooks.add(look);
+      return {look, kind:c.kind, need:c.need, wait:c.wait, maxWait:c.maxWait, delay:c.delay};
+    });
+    return {version: 1, stall, day: s.day, coins: s.coins, best: s.best, totalSold: s.totalSold, stock: s.stock, combo: s.combo, dayCoins: s.dayCoins, daySold: s.daySold, time: s.time, running: false, heat: s.heat, up: Object.fromEntries(KEYS.map(k => [k,s.up[k]])), molds: s.molds.map(m => ({phase: m.phase, age: m.age})), customers, notice: typeof s.notice === 'string' ? s.notice.slice(0, 200) : '저장된 장사를 불러왔어요.'};
   } catch {return fresh();}
 }
