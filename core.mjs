@@ -1,12 +1,34 @@
 const KEYS = ['oven', 'price', 'patience'];
 const BASE_COST = {oven: 500, price: 800, patience: 600};
+// User-requested progression; these tiers and prices are new design values, not recovered original rules.
+export const STALLS = Object.freeze([
+  {name:'리어카',cost:0,bonus:0},
+  {name:'지붕 리어카',cost:800,bonus:10},
+  {name:'포장마차',cost:1800,bonus:25},
+  {name:'동네 노점',cost:3500,bonus:45},
+  {name:'작은 가게',cost:6500,bonus:70},
+  {name:'골목 맛집',cost:11000,bonus:100},
+  {name:'붕어빵 전문점',cost:18000,bonus:140},
+  {name:'동네 명물',cost:28000,bonus:190},
+  {name:'프리미엄 매장',cost:42000,bonus:250},
+  {name:'붕어빵 궁전',cost:60000,bonus:330},
+].map(Object.freeze));
 const mold = () => ({phase: 'empty', age: 0});
 const customer = (patience = 0, delay = 0) => {
   const kind = Math.floor(Math.random() * 4);
   return {kind, need: 1 + Math.floor(Math.random() * 3) + (kind === 0 ? 1 : 0), wait: 0, maxWait: (kind === 2 ? 30 : 45) + patience * 10, delay};
 };
 export function fresh() {
-  return {version: 1, day: 1, coins: 0, best: 0, totalSold: 0, stock: 0, combo: 0, dayCoins: 0, daySold: 0, time: 120, running: false, heat: 0, up: {oven: 0, price: 0, patience: 0}, molds: Array.from({length: 9}, mold), customers: Array.from({length: 3}, () => customer()), notice: '장사를 시작해 보세요!'};
+  return {version: 1, stall: 0, day: 1, coins: 0, best: 0, totalSold: 0, stock: 0, combo: 0, dayCoins: 0, daySold: 0, time: 120, running: false, heat: 0, up: {oven: 0, price: 0, patience: 0}, molds: Array.from({length: 9}, mold), customers: Array.from({length: 3}, () => customer()), notice: '장사를 시작해 보세요!'};
+}
+export const stallCost = s => Number.isInteger(s.stall) && s.stall >= 0 && s.stall < STALLS.length - 1 ? STALLS[s.stall + 1].cost : null;
+export function upgradeStall(s) {
+  const cost = stallCost(s);
+  if (cost === null) {s.notice = '최고 단계의 가게예요!'; return false;}
+  if (s.coins < cost) {s.notice = `다음 가게로 성장하려면 ${cost}원이 필요해요.`; return false;}
+  s.coins -= cost; s.stall++;
+  s.notice = `${STALLS[s.stall].name} 오픈! 붕어빵 한 개당 +${STALLS[s.stall].bonus}원!`;
+  return true;
 }
 export const readyAt = s => 4 - .5 * s.up.oven;
 export const upgradeCost = (s, key) => KEYS.includes(key) && s.up[key] < 3 ? BASE_COST[key] * (s.up[key] + 1) : null;
@@ -55,7 +77,7 @@ export function serve(s, index, gift = false) {
   if (s.stock < count) {s.notice = `붕어빵 ${count}개가 필요해요. 조금 더 구워 주세요!`; return false;}
   s.stock -= count;
   s.combo = gift === true ? s.combo + 1 : 0;
-  const gain = c.need * (100 + 25 * s.up.price) + s.combo * 25;
+  const gain = c.need * (100 + 25 * s.up.price + STALLS[s.stall].bonus) + s.combo * 25;
   s.coins += gain; s.dayCoins += gain; s.totalSold += c.need; s.daySold += c.need;
   s.best = Math.max(s.best, s.dayCoins);
   s.customers[index] = customer(s.up.patience, 2);
@@ -84,11 +106,13 @@ export function validate(input) {
   try {
     if (!input || typeof input !== 'object' || input.version !== 1) return fresh();
     const s = input;
+    const stall = s.stall === undefined ? 0 : s.stall;
+    if (!finite(stall, 0, STALLS.length - 1, true)) return fresh();
     if (!finite(s.day, 1, 1e7, true) || typeof s.running !== 'boolean' || !finite(s.time, 0, 120) || !finite(s.heat, 0, 4)) return fresh();
     for (const k of ['coins', 'best', 'totalSold', 'stock', 'combo', 'dayCoins', 'daySold']) if (!finite(s[k], 0, 1e12, true)) return fresh();
     if (!s.up || KEYS.some(k => !finite(s.up[k], 0, 3, true))) return fresh();
     if (!Array.isArray(s.molds) || s.molds.length !== 9 || s.molds.some(m => !m || !['empty','front','back','burnt'].includes(m.phase) || !finite(m.age, 0, 12))) return fresh();
     if (!Array.isArray(s.customers) || s.customers.length !== 3 || s.customers.some(c => !c || !finite(c.kind, 0, 3, true) || !finite(c.need, 1, 4, true) || !finite(c.wait, 0, 75) || !finite(c.maxWait, 30, 75) || !finite(c.delay, 0, 3) || c.wait > c.maxWait)) return fresh();
-    return {version: 1, day: s.day, coins: s.coins, best: s.best, totalSold: s.totalSold, stock: s.stock, combo: s.combo, dayCoins: s.dayCoins, daySold: s.daySold, time: s.time, running: false, heat: s.heat, up: Object.fromEntries(KEYS.map(k => [k,s.up[k]])), molds: s.molds.map(m => ({phase: m.phase, age: m.age})), customers: s.customers.map(c => ({kind:c.kind, need:c.need, wait:c.wait, maxWait:c.maxWait, delay:c.delay})), notice: typeof s.notice === 'string' ? s.notice.slice(0, 200) : '저장된 장사를 불러왔어요.'};
+    return {version: 1, stall, day: s.day, coins: s.coins, best: s.best, totalSold: s.totalSold, stock: s.stock, combo: s.combo, dayCoins: s.dayCoins, daySold: s.daySold, time: s.time, running: false, heat: s.heat, up: Object.fromEntries(KEYS.map(k => [k,s.up[k]])), molds: s.molds.map(m => ({phase: m.phase, age: m.age})), customers: s.customers.map(c => ({kind:c.kind, need:c.need, wait:c.wait, maxWait:c.maxWait, delay:c.delay})), notice: typeof s.notice === 'string' ? s.notice.slice(0, 200) : '저장된 장사를 불러왔어요.'};
   } catch {return fresh();}
 }
