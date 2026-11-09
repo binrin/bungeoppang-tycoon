@@ -14,12 +14,23 @@ export const STALLS = Object.freeze([
   {name:'붕어빵 궁전',cost:60000,bonus:330},
 ].map(Object.freeze));
 const mold = () => ({phase: 'empty', age: 0});
-const customer = (patience = 0, delay = 0) => {
-  const kind = Math.floor(Math.random() * 4);
-  return {kind, need: 1 + Math.floor(Math.random() * 3) + (kind === 0 ? 1 : 0), wait: 0, maxWait: (kind === 2 ? 30 : 45) + patience * 10, delay};
+const LOOK_KINDS = [2, 0, 1, 3, 3, 3, 2, 3, 1, 3];
+const LEGACY_LOOKS = [1, 2, 0, 3];
+const customer = (patience = 0, delay = 0, excludedLooks = []) => {
+  let candidates = LOOK_KINDS.map((_, look) => look).filter(look => !excludedLooks.includes(look));
+  if (!candidates.length) candidates = LOOK_KINDS.map((_, look) => look);
+  const look = candidates[Math.floor(Math.random() * candidates.length)];
+  const kind = LOOK_KINDS[look];
+  return {look, kind, need: 1 + Math.floor(Math.random() * 3) + (kind === 0 ? 1 : 0), wait: 0, maxWait: (kind === 2 ? 30 : 45) + patience * 10, delay};
 };
+const customerQueue = (patience = 0) => {
+  const queue = [];
+  for (let i = 0; i < 3; i++) queue.push(customer(patience, 0, queue.map(c => c.look)));
+  return queue;
+};
+const otherLooks = (s, index) => s.customers.filter((_, i) => i !== index).map(c => c.look);
 export function fresh() {
-  return {version: 1, stall: 0, day: 1, coins: 0, best: 0, totalSold: 0, stock: 0, combo: 0, dayCoins: 0, daySold: 0, time: 120, running: false, heat: 0, up: {oven: 0, price: 0, patience: 0}, molds: Array.from({length: 9}, mold), customers: Array.from({length: 3}, () => customer()), notice: '장사를 시작해 보세요!'};
+  return {version: 1, stall: 0, day: 1, coins: 0, best: 0, totalSold: 0, stock: 0, combo: 0, dayCoins: 0, daySold: 0, time: 120, running: false, heat: 0, up: {oven: 0, price: 0, patience: 0}, molds: Array.from({length: 9}, mold), customers: customerQueue(), notice: '장사를 시작해 보세요!'};
 }
 export const stallCost = s => Number.isInteger(s.stall) && s.stall >= 0 && s.stall < STALLS.length - 1 ? STALLS[s.stall + 1].cost : null;
 export function upgradeStall(s) {
@@ -63,7 +74,7 @@ export function tick(s, dt) {
     const waiting = Math.max(0, dt - c.delay);
     c.delay = Math.max(0, c.delay - dt);
     c.wait += waiting;
-    if (c.wait >= c.maxWait) {s.customers[i] = customer(s.up.patience, 3); s.combo = 0; s.notice = '손님이 기다리다 갔어요. 다음 손님에게 맛있게 구워 주세요!';}
+    if (c.wait >= c.maxWait) {s.customers[i] = customer(s.up.patience, 3, otherLooks(s, i)); s.combo = 0; s.notice = '손님이 기다리다 갔어요. 다음 손님에게 맛있게 구워 주세요!';}
   }
   s.time = Math.max(0, s.time - dt);
   if (s.time === 0) {s.running = false; s.heat = 0; s.best = Math.max(s.best, s.dayCoins); s.notice = '오늘 장사 끝! 번 돈으로 가게를 업그레이드해요.';}
@@ -80,7 +91,7 @@ export function serve(s, index, gift = false) {
   const gain = c.need * (100 + 25 * s.up.price + STALLS[s.stall].bonus) + s.combo * 25;
   s.coins += gain; s.dayCoins += gain; s.totalSold += c.need; s.daySold += c.need;
   s.best = Math.max(s.best, s.dayCoins);
-  s.customers[index] = customer(s.up.patience, 2);
+  s.customers[index] = customer(s.up.patience, 2, otherLooks(s, index));
   s.notice = `${s.combo > 0 ? s.combo + '콤보! ' : ''}맛있게 드세요 · +${gain}원`;
   return true;
 }
@@ -89,7 +100,7 @@ export function startDay(s) {
   if (s.time <= 0) {
     s.day++; s.time = 120; s.dayCoins = 0; s.daySold = 0; s.combo = 0; s.heat = 0;
     s.molds = Array.from({length: 9}, mold);
-    s.customers = Array.from({length: 3}, () => customer(s.up.patience));
+    s.customers = customerQueue(s.up.patience);
   }
   s.running = true; s.notice = '장사 시작! 빈 빵틀을 눌러 반죽을 부으세요.'; return true;
 }
@@ -113,6 +124,7 @@ export function validate(input) {
     if (!s.up || KEYS.some(k => !finite(s.up[k], 0, 3, true))) return fresh();
     if (!Array.isArray(s.molds) || s.molds.length !== 9 || s.molds.some(m => !m || !['empty','front','back','burnt'].includes(m.phase) || !finite(m.age, 0, 12))) return fresh();
     if (!Array.isArray(s.customers) || s.customers.length !== 3 || s.customers.some(c => !c || !finite(c.kind, 0, 3, true) || !finite(c.need, 1, 4, true) || !finite(c.wait, 0, 75) || !finite(c.maxWait, 30, 75) || !finite(c.delay, 0, 3) || c.wait > c.maxWait)) return fresh();
-    return {version: 1, stall, day: s.day, coins: s.coins, best: s.best, totalSold: s.totalSold, stock: s.stock, combo: s.combo, dayCoins: s.dayCoins, daySold: s.daySold, time: s.time, running: false, heat: s.heat, up: Object.fromEntries(KEYS.map(k => [k,s.up[k]])), molds: s.molds.map(m => ({phase: m.phase, age: m.age})), customers: s.customers.map(c => ({kind:c.kind, need:c.need, wait:c.wait, maxWait:c.maxWait, delay:c.delay})), notice: typeof s.notice === 'string' ? s.notice.slice(0, 200) : '저장된 장사를 불러왔어요.'};
+    if (s.customers.some(c => c.look !== undefined && !finite(c.look, 0, 9, true))) return fresh();
+    return {version: 1, stall, day: s.day, coins: s.coins, best: s.best, totalSold: s.totalSold, stock: s.stock, combo: s.combo, dayCoins: s.dayCoins, daySold: s.daySold, time: s.time, running: false, heat: s.heat, up: Object.fromEntries(KEYS.map(k => [k,s.up[k]])), molds: s.molds.map(m => ({phase: m.phase, age: m.age})), customers: s.customers.map(c => ({look:c.look === undefined ? LEGACY_LOOKS[c.kind] : c.look, kind:c.kind, need:c.need, wait:c.wait, maxWait:c.maxWait, delay:c.delay})), notice: typeof s.notice === 'string' ? s.notice.slice(0, 200) : '저장된 장사를 불러왔어요.'};
   } catch {return fresh();}
 }
