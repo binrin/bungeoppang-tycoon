@@ -55,4 +55,4 @@ document.addEventListener('keydown',e=>{if(screen)return;if(/^[1-9]$/.test(e.key
 document.addEventListener('visibilitychange',()=>{if(document.hidden){if(s.running){$('pause').click();}save();}else last=performance.now();});window.addEventListener('pagehide',save);
 function frame(now){if(now-last>=45){const dt=Math.min((now-last)/1000,.25);last=now;const running=s.running;tick(s,dt);render();if(running&&!s.running&&s.time===0)endDay();if(now-lastSave>2000){save();lastSave=now;}}requestAnimationFrame(frame);}
 render();intro();requestAnimationFrame(frame);
-if('serviceWorker' in navigator&&window.isSecureContext){navigator.serviceWorker.register('./sw.js').then(()=>navigator.serviceWorker.ready).then(()=>{offlineReady=true;save();}).catch(()=>{$('save-state').textContent=storageOK?'기기에 자동 저장 · 오프라인 준비 실패':'저장 불가 · 백업 필요';});}
+if('serviceWorker' in navigator&&window.isSecureContext){navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(()=>navigator.serviceWorker.ready).then(()=>{offlineReady=true;save();}).catch(()=>{$('save-state').textContent=storageOK?'기기에 자동 저장 · 오프라인 준비 실패':'저장 불가 · 백업 필요';});}
