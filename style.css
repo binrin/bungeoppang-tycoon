@@ -45,3 +45,12 @@ html{font-family:LineSeed,system-ui,sans-serif;font-synthesis:none;text-renderin
 .restart-button{color:#a24338;border-color:#d1a090;margin-top:16px}.danger-button{background:linear-gradient(#d87555,#ad4b3c);border-color:#8c3f36}.reset-summary{background:#f1e2c6;border-radius:10px;padding:12px;font-size:13px;line-height:1.8;color:#7b573b}.reset-summary b{font-size:22px}.card .danger-button{font-size:15px}
 
 .update-button{border-color:#ab8db4;color:#624370;background:linear-gradient(#fcf4ff,#ecdcf2)}#update-note{font-size:11px;margin:7px 0 12px;line-height:1.5;color:#765983}
+/* Growing crowd: keep portraits readable, three customers per row. */
+[hidden]{display:none!important}
+.reputation{padding:10px 8px;text-align:center;font-weight:700;font-size:14px;background:#fff4d5;color:#714b31;border-bottom:2px solid #dabb85}
+#app .street{height:auto;min-height:320px;background-size:100% auto;background-position:center top;background-repeat:no-repeat;background-color:#d5c4a6}
+#customers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));height:auto;padding:42px 8px 9px;gap:10px 6px;align-items:end}
+.customer{height:132px;width:100%}.customer .portrait{height:88px;width:78px}.order{font-size:12px;min-width:0;max-width:100%;padding:5px}.order b{font-size:19px}.patience{height:5px;width:65px}
+.street-sign,#app[data-stall="9"] .street-sign{top:5px;font-size:13px}
+.mold{height:88px}.mold .pastry{height:66px}.mold .step{font-size:11px;line-height:14px;padding:2px 3px}.mold .key{font-size:11px}
+.notice{font-size:13px;line-height:18px;min-height:36px}.controls small{font-size:11px}.grill-caption{font-size:10px}
