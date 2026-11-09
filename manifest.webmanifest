@@ -1,0 +1,19 @@
+{
+  "name": "붕어빵 타이쿤 · 작은 노점",
+  "short_name": "붕어빵 타이쿤",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff4d7",
+  "theme_color": "#382a5b",
+  "icons": [
+    {
+      "src": "assets/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
