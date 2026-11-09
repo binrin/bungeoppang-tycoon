@@ -13,7 +13,7 @@ export const STALLS = Object.freeze([
   {name:'프리미엄 매장',cost:420000,bonus:70},
   {name:'붕어빵 궁전',cost:600000,bonus:70},
 ].map(Object.freeze));
-export const moldCount = s => Math.min(15, 3 * (s.stall + 1));
+export const moldCount = s => Math.min(9, 3 * (s.stall + 1));
 export const crowdTarget = s => Math.max(5, Math.min(10, 6 + Math.floor(s.stall / 2) + (s.reputation >= 75 ? 1 : s.reputation < 30 ? -1 : 0)));
 const reputation = (s, delta) => {s.reputation = Math.max(0, Math.min(100, s.reputation + delta));};
 function fillCrowd(s) {while(s.customers.length < crowdTarget(s)) s.customers.push(customer(s.up.patience, 0, s.customers.map(c=>c.look)));}
@@ -34,7 +34,7 @@ const customerQueue = (patience = 0, count = 6) => {
 };
 const otherLooks = (s, index) => s.customers.filter((_, i) => i !== index).map(c => c.look);
 export function fresh() {
-  return {version: 1, rules: 2, reputation: 50, burntSlot: -1, stall: 0, day: 1, coins: 0, best: 0, totalSold: 0, stock: 0, combo: 0, dayCoins: 0, daySold: 0, time: 120, running: false, heat: 0, up: {oven: 0, price: 0, patience: 0}, molds: Array.from({length: 3}, mold), customers: customerQueue(), notice: '장사를 시작해 보세요!'};
+  return {version: 1, rules: 3, reputation: 50, burntSlot: -1, stall: 0, day: 1, coins: 0, best: 0, totalSold: 0, stock: 0, combo: 0, dayCoins: 0, daySold: 0, time: 120, running: false, heat: 0, up: {oven: 0, price: 0, patience: 0}, molds: Array.from({length: 3}, mold), customers: customerQueue(), notice: '장사를 시작해 보세요!'};
 }
 export const stallCost = s => Number.isInteger(s.stall) && s.stall >= 0 && s.stall < STALLS.length - 1 ? STALLS[s.stall + 1].cost : null;
 export function upgradeStall(s) {
@@ -141,7 +141,7 @@ export function validate(input, strict = false) {
   try {
     if (!input || typeof input !== 'object' || input.version !== 1) throw Error('Invalid save');
     const s = input;
-    if(s.rules !== undefined && s.rules !== 2) throw Error('Invalid rules');
+    if(s.rules !== undefined && ![2,3].includes(s.rules)) throw Error('Invalid rules');
     if(s.reputation !== undefined && !finite(s.reputation,0,100,true)) throw Error('Invalid reputation');
     const stall = s.stall === undefined ? 0 : s.stall;
     const burntSlot = s.burntSlot === undefined ? -1 : s.burntSlot;
@@ -150,8 +150,8 @@ export function validate(input, strict = false) {
     if (!finite(s.day, 1, 1e7, true) || typeof s.running !== 'boolean' || !finite(s.time, 0, 120) || !finite(s.heat, 0, 4)) throw Error('Invalid save');
     for (const k of ['coins', 'best', 'totalSold', 'stock', 'combo', 'dayCoins', 'daySold']) if (!finite(s[k], 0, 1e12, true)) throw Error('Invalid save');
     if (!s.up || KEYS.some(k => !finite(s.up[k], 0, 3, true))) throw Error('Invalid save');
-    if (!Array.isArray(s.molds) || (s.rules === 2 ? s.molds.length !== moldCount({stall}) : s.molds.length !== 9) || s.molds.some(m => !m || !['empty','front','back','burnt'].includes(m.phase) || !finite(m.age, 0, 12))) throw Error('Invalid save');
-    if (!Array.isArray(s.customers) || (s.rules === 2 ? s.customers.length < 5 || s.customers.length > 10 : s.customers.length !== 3) || s.customers.some(c => !c || !finite(c.kind, 0, 3, true) || !finite(c.need, 1, 4, true) || !finite(c.wait, 0, 75) || !finite(c.maxWait, 30, 75) || !finite(c.delay, 0, 3) || c.wait > c.maxWait)) throw Error('Invalid save');
+    if (!Array.isArray(s.molds) || (s.rules === 3 ? s.molds.length !== moldCount({stall}) : s.rules === 2 ? s.molds.length !== Math.min(15,3*(stall+1)) : s.molds.length !== 9) || s.molds.some(m => !m || !['empty','front','back','burnt'].includes(m.phase) || !finite(m.age, 0, 12))) throw Error('Invalid save');
+    if (!Array.isArray(s.customers) || (s.rules >= 2 ? s.customers.length < 5 || s.customers.length > 10 : s.customers.length !== 3) || s.customers.some(c => !c || !finite(c.kind, 0, 3, true) || !finite(c.need, 1, 4, true) || !finite(c.wait, 0, 75) || !finite(c.maxWait, 30, 75) || !finite(c.delay, 0, 3) || c.wait > c.maxWait)) throw Error('Invalid save');
     if (s.customers.some(c => c.anger !== undefined && !finite(c.anger, 0, 6))) throw Error('Invalid save');
     if (s.customers.some(c => c.look !== undefined && !finite(c.look, 0, 9, true))) throw Error('Invalid save');
     const usedLooks = new Set();
@@ -164,8 +164,8 @@ export function validate(input, strict = false) {
       usedLooks.add(look);
       return {anger:c.anger ?? 0, look, kind:c.kind, need:c.need, wait:c.wait, maxWait:c.maxWait, delay:c.delay};
     });
-    const result = {version: 1, rules: 2, reputation: s.reputation ?? 50, burntSlot: burntSlot >= 0 && s.molds[burntSlot]?.phase === 'burnt' ? burntSlot : -1, stall, day: s.day, coins: s.coins, best: s.best, totalSold: s.totalSold, stock: s.stock, combo: s.combo, dayCoins: s.dayCoins, daySold: s.daySold, time: s.time, running: false, heat: s.heat, up: Object.fromEntries(KEYS.map(k => [k,s.up[k]])), molds: s.molds.map(m => ({phase: m.phase, age: m.age})), customers, notice: typeof s.notice === 'string' ? s.notice.slice(0, 200) : '저장된 장사를 불러왔어요.'};
-    if(s.rules !== 2) {
+    const result = {version: 1, rules: 3, reputation: s.reputation ?? 50, burntSlot: burntSlot >= 0 && s.molds[burntSlot]?.phase === 'burnt' ? burntSlot : -1, stall, day: s.day, coins: s.coins, best: s.best, totalSold: s.totalSold, stock: s.stock, combo: s.combo, dayCoins: s.dayCoins, daySold: s.daySold, time: s.time, running: false, heat: s.heat, up: Object.fromEntries(KEYS.map(k => [k,s.up[k]])), molds: s.molds.map(m => ({phase: m.phase, age: m.age})), customers, notice: typeof s.notice === 'string' ? s.notice.slice(0, 200) : '저장된 장사를 불러왔어요.'};
+    if(s.rules !== 3) {
       // Preserve finished pastries from legacy slots removed by the new capacity.
       result.stock += result.molds.slice(moldCount(result)).filter(m=>m.phase==='back' && m.age>=readyAt(result)).length;
       result.molds = result.molds.slice(0,moldCount(result));
@@ -176,3 +176,4 @@ export function validate(input, strict = false) {
     return result;
   } catch(e) {if(strict) throw e; return fresh();}
 }
+
