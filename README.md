@@ -1,4 +1,6 @@
-# 겨울붕어빵타이쿤
+# 붕어타이쿤
+
+© 2026 체니. All rights reserved. 새 게임 코드와 창작 콘텐츠의 저작권자: 체니. [저작권 및 이용 안내](LICENSE.txt).
 
 붕어빵타이쿤3의 튜토리얼을 바탕으로 새로 작성한 비공식 터치 재구성입니다. 원작 © 컴투스. v2는 사용자가 승인한 화풍의 ImageGen 생성 전신 손님 10종, 단계별 가게 배경 10종, 굽기 이미지 8종과 소품 4종을 사용합니다. 원작 게임 코드를 그대로 실행하는 에뮬레이터는 아닙니다. 폰트 LINE Seed KR (LY Corporation), SIL Open Font License 1.1. 공식 배포처 https://seed.line.me/index_kr.html 및 assets/fonts/OFL-LINE-Seed.txt 참조.
 
